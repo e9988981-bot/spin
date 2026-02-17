@@ -61,16 +61,38 @@ class WheelGame {
 
     // ตั้งค่า Canvas
     this.canvas = document.getElementById('wheelCanvas');
-    if (!this.canvas) return;
+    if (!this.canvas) {
+      console.error('ไม่พบ wheelCanvas element');
+      return;
+    }
     
     const container = this.canvas.parentElement;
+    if (!container) {
+      console.error('ไม่พบ container ของ canvas');
+      return;
+    }
+    
     const size = Math.min(container.offsetWidth, 500);
     this.canvas.width = size;
     this.canvas.height = size;
     this.ctx = this.canvas.getContext('2d');
+    
+    if (!this.ctx) {
+      console.error('ไม่สามารถสร้าง canvas context ได้');
+      return;
+    }
+    
     this.radius = size / 2 - 10;
     this.centerX = size / 2;
     this.centerY = size / 2;
+    
+    console.log('Canvas initialized:', {
+      width: size,
+      height: size,
+      radius: this.radius,
+      centerX: this.centerX,
+      centerY: this.centerY
+    });
 
     // Event overlay canvas
     this.eventCanvas = document.getElementById('eventCanvas');
@@ -91,18 +113,26 @@ class WheelGame {
     }
 
     // วาดวงล้อเริ่มต้น
+    console.log('กำลังวาดวงล้อ...', {
+      segments: this.segments.length,
+      currentAngle: this.currentAngle,
+      goodLuckIndex: this.goodLuckIndex
+    });
+    
     this.drawWheel();
     
     // ตรวจสอบอีกครั้งว่าวงล้อเริ่มจาก "ขอให้โชคดี"
-    const segmentCount = this.segments.length;
-    const anglePerSegment = (Math.PI * 2) / segmentCount;
-    const segmentCenter = this.goodLuckIndex * anglePerSegment + anglePerSegment / 2;
-    const pointerAngleCheck = 3 * Math.PI / 2; // Pointer ชี้ขึ้น (270 องศา)
-    const drawnCenter = this.normalizeAngle(segmentCenter + this.currentAngle);
-    let diff = this.getShortestAngle(drawnCenter, pointerAngleCheck);
-    if (Math.abs(diff) > 0.0001) {
-      this.currentAngle = this.normalizeAngle(pointerAngleCheck - segmentCenter);
-      this.drawWheel();
+    if (this.segments.length > 0 && this.goodLuckIndex >= 0) {
+      const segmentCount = this.segments.length;
+      const anglePerSegment = (Math.PI * 2) / segmentCount;
+      const segmentCenter = this.goodLuckIndex * anglePerSegment + anglePerSegment / 2;
+      const pointerAngleCheck = 3 * Math.PI / 2; // Pointer ชี้ขึ้น (270 องศา)
+      const drawnCenter = this.normalizeAngle(segmentCenter + this.currentAngle);
+      let diff = this.getShortestAngle(drawnCenter, pointerAngleCheck);
+      if (Math.abs(diff) > 0.0001) {
+        this.currentAngle = this.normalizeAngle(pointerAngleCheck - segmentCenter);
+        this.drawWheel();
+      }
     }
 
     // Event listeners
@@ -123,11 +153,22 @@ class WheelGame {
   }
 
   drawWheel() {
-    if (!this.ctx) return;
+    if (!this.ctx) {
+      console.error('Canvas context ไม่พร้อม');
+      return;
+    }
+
+    if (!this.segments || this.segments.length === 0) {
+      console.error('ไม่มี segments ข้อมูล');
+      return;
+    }
 
     const ctx = this.ctx;
     const segmentCount = this.segments.length;
     const anglePerSegment = (Math.PI * 2) / segmentCount;
+    
+    // Clear canvas ก่อนวาดใหม่
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     // วาดแต่ละ segment
     for (let i = 0; i < segmentCount; i++) {
@@ -171,6 +212,7 @@ class WheelGame {
       ctx.strokeStyle = strokeColor;
       ctx.lineWidth = 2.5;
       ctx.stroke();
+      
 
       // วาดข้อความ
       const midAngle = (startAngle + endAngle) / 2;
@@ -242,6 +284,19 @@ class WheelGame {
     ctx.shadowColor = 'rgba(212, 175, 55, 0.5)';
     ctx.stroke();
     ctx.shadowBlur = 0;
+    
+    // วาดจุดศูนย์กลาง (สำหรับ debug)
+    ctx.fillStyle = '#ff0000';
+    ctx.beginPath();
+    ctx.arc(this.centerX, this.centerY, 5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    console.log('วาดวงล้อเสร็จแล้ว:', {
+      segments: segmentCount,
+      radius: this.radius,
+      centerX: this.centerX,
+      centerY: this.centerY
+    });
   }
 
   spin() {
@@ -959,17 +1014,33 @@ class WheelGame {
 
 // Initialize game when DOM is ready
 let wheelGame;
-document.addEventListener('DOMContentLoaded', () => {
-  wheelGame = new WheelGame();
-  wheelGame.init();
-  wheelFX.init();
-  wheelMascot.init('mascotContainer');
-  
-  // Show mascot on desktop
-  if (window.innerWidth > 768) {
-    const mascotContainer = document.getElementById('mascotContainer');
-    if (mascotContainer) {
-      mascotContainer.classList.add('visible');
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    wheelGame = new WheelGame();
+    await wheelGame.init();
+    wheelFX.init();
+    wheelMascot.init('mascotContainer');
+    
+    // Show mascot on desktop
+    if (window.innerWidth > 768) {
+      const mascotContainer = document.getElementById('mascotContainer');
+      if (mascotContainer) {
+        mascotContainer.classList.add('visible');
+      }
     }
+    
+    // ตรวจสอบว่าวงล้อถูกวาดหรือไม่
+    if (wheelGame.canvas && wheelGame.ctx) {
+      console.log('Canvas พร้อมแล้ว:', {
+        width: wheelGame.canvas.width,
+        height: wheelGame.canvas.height,
+        segments: wheelGame.segments.length,
+        currentAngle: wheelGame.currentAngle
+      });
+    } else {
+      console.error('Canvas ไม่พร้อม!');
+    }
+  } catch (error) {
+    console.error('Error initializing game:', error);
   }
 });
