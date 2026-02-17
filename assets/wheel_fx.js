@@ -38,7 +38,7 @@ class WheelFX {
       this.confettiCanvas.height = window.innerHeight;
     }
 
-    const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#95e1d3', '#f38181'];
+    const colors = ['#d4af37', '#f4d03f', '#b8941f', '#f5d76e', '#e8c547', '#c9a227'];
     const particleCount = 50;
 
     for (let i = 0; i < particleCount; i++) {

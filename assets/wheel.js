@@ -22,6 +22,15 @@ class WheelGame {
     this.selectedEvent = null;
   }
 
+  lightenColor(color, percent) {
+    const num = parseInt(color.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = Math.min(255, (num >> 16) + amt);
+    const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
+    const B = Math.min(255, (num & 0x0000FF) + amt);
+    return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+  }
+
   async init() {
     // โหลดข้อมูล
     try {
@@ -99,29 +108,42 @@ class WheelGame {
       const startAngle = i * anglePerSegment + this.currentAngle;
       const endAngle = (i + 1) * anglePerSegment + this.currentAngle;
 
-      // สีตาม type
+      // สีตาม type (ธีมหรู)
       const segment = this.segments[i];
-      let color = '#95e1d3';
+      let color = '#2c3e50';
+      let strokeColor = 'rgba(212, 175, 55, 0.3)';
       
       if (segment.type === 'goodluck') {
-        color = '#f38181';
+        color = '#d4af37';
+        strokeColor = 'rgba(212, 175, 55, 0.6)';
       } else if (segment.tier === 'big') {
-        color = '#ffe66d';
+        color = '#f4d03f';
+        strokeColor = 'rgba(244, 208, 63, 0.4)';
       } else if (segment.tier === 'mid') {
-        color = '#4ecdc4';
+        color = '#34495e';
+        strokeColor = 'rgba(212, 175, 55, 0.3)';
       } else {
-        color = '#95e1d3';
+        color = '#1a1a2e';
+        strokeColor = 'rgba(212, 175, 55, 0.2)';
       }
+
+      // สร้าง gradient สำหรับ segment
+      const gradient = ctx.createRadialGradient(
+        this.centerX, this.centerY, this.radius * 0.3,
+        this.centerX, this.centerY, this.radius
+      );
+      gradient.addColorStop(0, this.lightenColor(color, 20));
+      gradient.addColorStop(1, color);
 
       // วาด segment
       ctx.beginPath();
       ctx.moveTo(this.centerX, this.centerY);
       ctx.arc(this.centerX, this.centerY, this.radius, startAngle, endAngle);
       ctx.closePath();
-      ctx.fillStyle = color;
+      ctx.fillStyle = gradient;
       ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 2.5;
       ctx.stroke();
 
       // วาดข้อความ
@@ -135,8 +157,23 @@ class WheelGame {
       ctx.rotate(midAngle + Math.PI / 2);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#333';
-      ctx.font = `bold ${Math.max(12, this.radius / 12)}px sans-serif`;
+      
+      // สีข้อความตาม tier
+      if (segment.type === 'goodluck') {
+        ctx.fillStyle = '#1a1a2e';
+        ctx.strokeStyle = '#f4d03f';
+        ctx.lineWidth = 1;
+      } else if (segment.tier === 'big') {
+        ctx.fillStyle = '#1a1a2e';
+        ctx.strokeStyle = '#d4af37';
+        ctx.lineWidth = 0.5;
+      } else {
+        ctx.fillStyle = '#f5f5f5';
+        ctx.strokeStyle = 'rgba(245, 245, 245, 0.3)';
+        ctx.lineWidth = 0.5;
+      }
+      
+      ctx.font = `bold ${Math.max(13, this.radius / 11)}px 'Segoe UI', sans-serif`;
       
       // แบ่งข้อความถ้ายาวเกิน
       const maxWidth = this.radius * 0.4;
@@ -148,24 +185,37 @@ class WheelGame {
         const testLine = line + word + ' ';
         const metrics = ctx.measureText(testLine);
         if (metrics.width > maxWidth && line !== '') {
+          ctx.strokeText(line, 0, y);
           ctx.fillText(line, 0, y);
           line = word + ' ';
-          y += 18;
+          y += 19;
         } else {
           line = testLine;
         }
       }
+      ctx.strokeText(line, 0, y);
       ctx.fillText(line, 0, y);
       
       ctx.restore();
     }
 
-    // วาดขอบวงล้อ
+    // วาดขอบวงล้อ (หรูหรา)
+    const borderGradient = ctx.createLinearGradient(
+      this.centerX - this.radius, this.centerY - this.radius,
+      this.centerX + this.radius, this.centerY + this.radius
+    );
+    borderGradient.addColorStop(0, '#d4af37');
+    borderGradient.addColorStop(0.5, '#f4d03f');
+    borderGradient.addColorStop(1, '#d4af37');
+    
     ctx.beginPath();
     ctx.arc(this.centerX, this.centerY, this.radius, 0, Math.PI * 2);
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = borderGradient;
+    ctx.lineWidth = 5;
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = 'rgba(212, 175, 55, 0.5)';
     ctx.stroke();
+    ctx.shadowBlur = 0;
   }
 
   spin() {
@@ -199,17 +249,19 @@ class WheelGame {
     const anglePerSegment = (Math.PI * 2) / segmentCount;
     
     // คำนวณมุม "ขอให้โชคดี" (ต้องได้รางวัลนี้เสมอ)
-    // Pointer ชี้ขึ้น (Math.PI / 2) ดังนั้นต้องคำนวณมุมให้ segment อยู่ที่ตำแหน่ง pointer
+    // Pointer ชี้ขึ้น (Math.PI / 2)
+    // Segment i มี midAngle = i * anglePerSegment + anglePerSegment/2 + currentAngle
+    // เพื่อให้ pointer ชี้ที่ segment "ขอให้โชคดี":
+    // goodLuckIndex * anglePerSegment + anglePerSegment/2 + currentAngle = Math.PI / 2
+    // currentAngle = Math.PI / 2 - (goodLuckIndex * anglePerSegment + anglePerSegment/2)
     const goodLuckIndex = this.goodLuckIndex;
-    const goodLuckSegmentCenterAngle = goodLuckIndex * anglePerSegment;
-    // มุมที่ต้องหมุนเพื่อให้ "ขอให้โชคดี" อยู่ที่ pointer (ชี้ขึ้น)
-    const finalTargetAngle = -goodLuckSegmentCenterAngle + Math.PI / 2;
+    const goodLuckMidAngle = goodLuckIndex * anglePerSegment + anglePerSegment / 2;
+    const finalTargetAngle = Math.PI / 2 - goodLuckMidAngle;
     
     // มุมที่เกือบได้รางวัลใหญ่ (ก่อนจะโดนดึง)
-    const nearPrizeSegmentCenterAngle = nearPrizeIndex * anglePerSegment;
-    const nearTargetAngle = -nearPrizeSegmentCenterAngle + Math.PI / 2;
-    // เลื่อนไปก่อน boundary เล็กน้อยเพื่อให้ดูเหมือนเกือบได้
-    const nearTargetAngleOffset = nearTargetAngle - anglePerSegment * 0.15;
+    // คำนวณมุมที่เกือบได้ (ก่อน boundary เล็กน้อย)
+    const nearPrizeMidAngle = nearPrizeIndex * anglePerSegment + anglePerSegment / 2;
+    const nearTargetAngle = Math.PI / 2 - nearPrizeMidAngle - anglePerSegment * 0.15;
 
     // เริ่มหมุน
     const startAngle = this.currentAngle;
@@ -241,23 +293,63 @@ class WheelGame {
         // ก่อน event: หมุนไปที่รางวัลที่เกือบได้
         const preEventProgress = progress / eventTriggerTime;
         const preEventEase = 1 - Math.pow(1 - preEventProgress, 3);
-        currentTargetAngle = nearTargetAngleOffset * preEventEase;
+        currentTargetAngle = nearTargetAngle * preEventEase;
       } else {
         // หลัง event: ค่อยๆ เลื่อนไปที่ "ขอให้โชคดี"
         const eventProgress = (progress - eventTriggerTime) / (1 - eventTriggerTime);
         const eventEase = eventProgress * eventProgress * (3 - 2 * eventProgress); // smoothstep
-        currentTargetAngle = nearTargetAngleOffset + (finalTargetAngle - nearTargetAngleOffset) * eventEase;
+        
+        // คำนวณมุมระหว่าง nearTarget และ finalTarget
+        let angleDiff = finalTargetAngle - nearTargetAngle;
+        // ปรับให้เป็นมุมที่สั้นที่สุด (normalize ระหว่าง -π ถึง π)
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        
+        currentTargetAngle = nearTargetAngle + angleDiff * eventEase;
       }
 
+      // คำนวณมุมสุดท้าย: หมุนหลายรอบ + มุมเป้าหมาย
       this.currentAngle = startAngle + totalRotation * easeProgress + currentTargetAngle;
+      
+      // Normalize มุมปัจจุบันให้อยู่ในช่วง 0 ถึง 2π
+      while (this.currentAngle < 0) this.currentAngle += Math.PI * 2;
+      while (this.currentAngle >= Math.PI * 2) this.currentAngle -= Math.PI * 2;
+      
       this.drawWheel();
 
       if (progress < 1) {
         this.animationId = requestAnimationFrame(animate);
       } else {
-        // จบการหมุน - ต้องได้ "ขอให้โชคดี" เสมอ
-        this.currentAngle = startAngle + totalRotation - goodLuckSegmentCenterAngle + Math.PI / 2;
+        // จบการหมุน - ต้องได้ "ขอให้โชคดี" เสมอ (บังคับให้ตรงเป๊ะ)
+        // คำนวณมุมสุดท้ายให้แน่ใจว่าวงล้อจะหยุดที่ "ขอให้โชคดี"
+        // มุมสุดท้าย = หมุนหลายรอบ + มุมที่ทำให้ pointer ชี้ที่ "ขอให้โชคดี"
+        this.currentAngle = startAngle + totalRotation + finalTargetAngle;
+        
+        // Normalize มุมให้อยู่ในช่วง 0 ถึง 2π
+        this.currentAngle = this.currentAngle % (Math.PI * 2);
+        if (this.currentAngle < 0) this.currentAngle += Math.PI * 2;
+        
+        // วาดอีกครั้งเพื่อให้แน่ใจว่าหยุดที่ตำแหน่งถูกต้อง
         this.drawWheel();
+        
+        // ตรวจสอบอีกครั้งว่าหยุดที่ "ขอให้โชคดี" จริงๆ
+        // คำนวณ midAngle ของ segment "ขอให้โชคดี" ในตำแหน่งปัจจุบัน
+        const goodLuckSegmentMidAngle = (goodLuckIndex * anglePerSegment + anglePerSegment / 2 + this.currentAngle) % (Math.PI * 2);
+        const pointerAngle = Math.PI / 2;
+        
+        // คำนวณความแตกต่างระหว่าง pointer กับ segment midAngle
+        let angleDiff = pointerAngle - goodLuckSegmentMidAngle;
+        if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        
+        // ถ้ายังไม่ตรง ให้ปรับอีกครั้ง (บังคับให้ตรงเป๊ะ)
+        if (Math.abs(angleDiff) > 0.001) {
+          this.currentAngle += angleDiff;
+          this.currentAngle = this.currentAngle % (Math.PI * 2);
+          if (this.currentAngle < 0) this.currentAngle += Math.PI * 2;
+          this.drawWheel();
+        }
+        
         this.onSpinComplete();
       }
     };
