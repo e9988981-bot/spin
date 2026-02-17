@@ -33,28 +33,108 @@
 
 เปิดไฟล์ `wheel.html` ด้วยเบราว์เซอร์ได้ทันที (ใช้ local file หรือ local server)
 
-### Deploy บน Cloudflare Pages
+### Deploy บน Cloud (หลายวิธี)
 
-1. **สร้าง GitHub Repository**
-   - สร้าง repo ใหม่บน GitHub
-   - Push ไฟล์ทั้งหมดเข้าไป
+**📖 ดูคู่มือละเอียดได้ที่ [DEPLOY.md](./DEPLOY.md)**
 
-2. **เชื่อมต่อกับ Cloudflare Pages**
-   - เข้า [Cloudflare Dashboard](https://dash.cloudflare.com/)
+สรุปวิธีที่แนะนำ:
+
+#### ⭐ วิธีที่ 1: Cloudflare Pages (แนะนำ - ฟรี, เร็วที่สุด)
+
+1. **เตรียมไฟล์บน GitHub**
+   ```bash
+   # สร้าง repo ใหม่บน GitHub แล้วรันคำสั่ง:
+   git init
+   git add .
+   git commit -m "Initial commit"
+   git branch -M main
+   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
+   git push -u origin main
+   ```
+
+2. **Deploy บน Cloudflare Pages**
+   - เข้า [Cloudflare Dashboard](https://dash.cloudflare.com/) (ต้องสมัครบัญชีฟรี)
    - ไปที่ **Pages** > **Create a project**
    - เลือก **Connect to Git**
    - เลือก GitHub repository ที่สร้างไว้
-
-3. **ตั้งค่า Build**
-   - **Framework preset**: `None`
-   - **Build command**: เว้นว่าง
-   - **Output directory**: `/` (root)
-   - **Root directory**: `/` (root)
-
-4. **Deploy**
+   - ตั้งค่า Build:
+     - **Framework preset**: `None`
+     - **Build command**: เว้นว่าง
+     - **Output directory**: `/` (root)
+     - **Root directory**: `/` (root)
    - กด **Save and Deploy**
-   - รอสักครู่ Cloudflare จะ deploy ให้อัตโนมัติ
-   - ได้ URL สำหรับเว็บไซต์แล้ว!
+   - รอสักครู่ (ประมาณ 1-2 นาที) Cloudflare จะ deploy ให้อัตโนมัติ
+   - ได้ URL สำหรับเว็บไซต์แล้ว! (เช่น `your-project.pages.dev`)
+
+#### ⭐ วิธีที่ 2: GitHub Pages (ฟรี, ง่ายที่สุด)
+
+1. **Push ไฟล์ขึ้น GitHub** (ตามขั้นตอนในวิธีที่ 1)
+
+2. **เปิดใช้งาน GitHub Pages**
+   - ไปที่ repository บน GitHub
+   - ไปที่ **Settings** > **Pages**
+   - **Source**: เลือก `main` branch และ `/` (root)
+   - กด **Save**
+   - รอสักครู่ (ประมาณ 1-2 นาที)
+   - ได้ URL แล้ว: `https://YOUR_USERNAME.github.io/YOUR_REPO/wheel.html`
+   - **หมายเหตุ**: ต้องเข้าผ่าน `/wheel.html` หรือเปลี่ยนชื่อไฟล์เป็น `index.html`
+
+#### วิธีที่ 3: Netlify (ฟรี, ง่าย)
+
+1. **Push ไฟล์ขึ้น GitHub** (ตามขั้นตอนในวิธีที่ 1)
+
+2. **Deploy บน Netlify**
+   - เข้า [Netlify](https://www.netlify.com/) (สมัครบัญชีฟรี)
+   - กด **Add new site** > **Import an existing project**
+   - เลือก **GitHub** และเลือก repository
+   - ตั้งค่า Build:
+     - **Build command**: เว้นว่าง
+     - **Publish directory**: `/` (root)
+   - กด **Deploy site**
+   - ได้ URL แล้ว! (เช่น `your-project.netlify.app`)
+
+#### วิธีที่ 4: Vercel (ฟรี, เร็ว)
+
+1. **Push ไฟล์ขึ้น GitHub** (ตามขั้นตอนในวิธีที่ 1)
+
+2. **Deploy บน Vercel**
+   - เข้า [Vercel](https://vercel.com/) (สมัครบัญชีฟรี)
+   - กด **Add New Project**
+   - เลือก GitHub repository
+   - ตั้งค่า:
+     - **Framework Preset**: Other
+     - **Root Directory**: `./`
+   - กด **Deploy**
+   - ได้ URL แล้ว! (เช่น `your-project.vercel.app`)
+
+#### วิธีที่ 5: ใช้ GitLab Pages หรืออื่นๆ
+
+- GitLab Pages: คล้าย GitHub Pages
+- Surge.sh: Deploy ผ่าน command line (ฟรี)
+- Firebase Hosting: ของ Google (มี free tier)
+
+### หมายเหตุสำคัญ
+
+- ✅ **ไฟล์ `index.html`**: มีให้แล้ว! ไม่ต้องเข้าผ่าน `/wheel.html` อีกต่อไป
+- ✅ **HTTPS**: ทุก platform รองรับ HTTPS อัตโนมัติ
+- ✅ **Custom Domain**: ทุก platform รองรับ custom domain (ฟรี)
+- ✅ **Auto Deploy**: เมื่อ push code ใหม่ จะ deploy อัตโนมัติ
+
+### Quick Start (เริ่มต้นเร็วที่สุด)
+
+```bash
+# 1. สร้าง repo บน GitHub
+# 2. Push ไฟล์ขึ้น GitHub
+git init
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
+git push -u origin main
+
+# 3. ไปที่ GitHub > Settings > Pages > เลือก main branch > Save
+# 4. รอ 1-2 นาที ได้ URL แล้ว: https://YOUR_USERNAME.github.io/YOUR_REPO/
+```
 
 ## กติกาเกม
 

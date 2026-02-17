@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>วงล้อรางวัลมหาโชค (ที่คุณไม่มีวันได้)</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="stylesheet" href="./assets/wheel.css">
+</head>
+<body>
+  <header>
+    <h1>วงล้อรางวัลมหาโชค</h1>
+    <p class="subtitle">(ที่คุณไม่มีวันได้)</p>
+  </header>
+
+  <div class="game-container">
+    <div class="wheel-section">
+      <div class="wheel-wrapper">
+        <div class="wheel-pointer"></div>
+        <canvas id="wheelCanvas"></canvas>
+        <div class="event-overlay">
+          <canvas id="eventCanvas"></canvas>
+        </div>
+      </div>
+      <div class="mascot-container" id="mascotContainer"></div>
+    </div>
+
+    <div class="controls">
+      <button id="spinBtn" class="btn btn-primary" aria-label="หมุนวงล้อ">
+        หมุนเลย
+      </button>
+      <button id="spinAgainBtn" class="btn btn-secondary" aria-label="หมุนอีกครั้ง" style="display: none;">
+        หมุนอีก
+      </button>
+      <label class="reduce-motion-toggle">
+        <input type="checkbox" id="reduceMotion">
+        <span>ลดการเคลื่อนไหว</span>
+      </label>
+    </div>
+
+    <div class="result-box" id="resultBox">
+      <div class="near-prize" id="nearPrize"></div>
+      <div class="final-prize" id="finalPrize"></div>
+      <div class="roast-message" id="roastMessage"></div>
+    </div>
+  </div>
+
+  <script src="./assets/wheel_fx.js"></script>
+  <script src="./assets/wheel_mascot.js"></script>
+  <script src="./assets/wheel.js"></script>
+</body>
+</html>
