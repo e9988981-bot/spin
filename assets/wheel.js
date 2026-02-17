@@ -86,13 +86,9 @@ class WheelGame {
     this.centerX = size / 2;
     this.centerY = size / 2;
     
-    console.log('Canvas initialized:', {
-      width: size,
-      height: size,
-      radius: this.radius,
-      centerX: this.centerX,
-      centerY: this.centerY
-    });
+    // ตั้งค่า canvas ให้ smooth
+    this.ctx.imageSmoothingEnabled = true;
+    this.ctx.imageSmoothingQuality = 'high';
 
     // Event overlay canvas
     this.eventCanvas = document.getElementById('eventCanvas');
@@ -113,12 +109,6 @@ class WheelGame {
     }
 
     // วาดวงล้อเริ่มต้น
-    console.log('กำลังวาดวงล้อ...', {
-      segments: this.segments.length,
-      currentAngle: this.currentAngle,
-      goodLuckIndex: this.goodLuckIndex
-    });
-    
     this.drawWheel();
     
     // ตรวจสอบอีกครั้งว่าวงล้อเริ่มจาก "ขอให้โชคดี"
@@ -167,13 +157,19 @@ class WheelGame {
     const segmentCount = this.segments.length;
     const anglePerSegment = (Math.PI * 2) / segmentCount;
     
-    // Clear canvas ก่อนวาดใหม่
+    // Clear canvas ก่อนวาดใหม่ (ใช้วิธีที่เร็วที่สุด)
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // วาดแต่ละ segment
+    // Normalize มุมก่อนวาดเพื่อความต่อเนื่อง (ทำครั้งเดียว, optimize)
+    let normalizedAngle = this.currentAngle;
+    // ใช้ modulo แทน while loop เพื่อความเร็ว
+    normalizedAngle = normalizedAngle % (Math.PI * 2);
+    if (normalizedAngle < 0) normalizedAngle += Math.PI * 2;
+    
+    // วาดแต่ละ segment (optimize loop)
     for (let i = 0; i < segmentCount; i++) {
-      const startAngle = i * anglePerSegment + this.currentAngle;
-      const endAngle = (i + 1) * anglePerSegment + this.currentAngle;
+      const startAngle = i * anglePerSegment + normalizedAngle;
+      const endAngle = (i + 1) * anglePerSegment + normalizedAngle;
 
       // สีตาม type (ธีมหรู)
       const segment = this.segments[i];
@@ -194,27 +190,27 @@ class WheelGame {
         strokeColor = 'rgba(212, 175, 55, 0.2)';
       }
 
-      // สร้าง gradient สำหรับ segment
-      const gradient = ctx.createRadialGradient(
-        this.centerX, this.centerY, this.radius * 0.3,
-        this.centerX, this.centerY, this.radius
-      );
-      gradient.addColorStop(0, this.lightenColor(color, 20));
-      gradient.addColorStop(1, color);
+      // ใช้สีธรรมดาแทน gradient เพื่อความเร็ว (หรือใช้ gradient ถ้าไม่ช้า)
+      // const gradient = ctx.createRadialGradient(
+      //   this.centerX, this.centerY, this.radius * 0.3,
+      //   this.centerX, this.centerY, this.radius
+      // );
+      // gradient.addColorStop(0, this.lightenColor(color, 20));
+      // gradient.addColorStop(1, color);
 
       // วาด segment
       ctx.beginPath();
       ctx.moveTo(this.centerX, this.centerY);
       ctx.arc(this.centerX, this.centerY, this.radius, startAngle, endAngle);
       ctx.closePath();
-      ctx.fillStyle = gradient;
+      ctx.fillStyle = color; // ใช้สีธรรมดาแทน gradient เพื่อความเร็ว
       ctx.fill();
       ctx.strokeStyle = strokeColor;
       ctx.lineWidth = 2.5;
       ctx.stroke();
       
 
-      // วาดข้อความ
+      // วาดข้อความ (optimize เพื่อความเร็ว)
       const midAngle = (startAngle + endAngle) / 2;
       const textRadius = this.radius * 0.7;
       const textX = this.centerX + Math.cos(midAngle) * textRadius;
@@ -243,7 +239,7 @@ class WheelGame {
       
       ctx.font = `bold ${Math.max(13, this.radius / 11)}px 'Segoe UI', sans-serif`;
       
-      // แบ่งข้อความถ้ายาวเกิน
+      // แบ่งข้อความถ้ายาวเกิน (optimize)
       const maxWidth = this.radius * 0.4;
       const words = segment.label.split(' ');
       let line = '';
@@ -261,13 +257,16 @@ class WheelGame {
           line = testLine;
         }
       }
-      ctx.strokeText(line, 0, y);
-      ctx.fillText(line, 0, y);
+      // วาดข้อความสุดท้าย
+      if (line.trim()) {
+        ctx.strokeText(line, 0, y);
+        ctx.fillText(line, 0, y);
+      }
       
       ctx.restore();
     }
 
-    // วาดขอบวงล้อ (หรูหรา)
+    // วาดขอบวงล้อ (หรูหรา) - ใช้ gradient แบบง่ายเพื่อความเร็ว
     const borderGradient = ctx.createLinearGradient(
       this.centerX - this.radius, this.centerY - this.radius,
       this.centerX + this.radius, this.centerY + this.radius
@@ -280,23 +279,12 @@ class WheelGame {
     ctx.arc(this.centerX, this.centerY, this.radius, 0, Math.PI * 2);
     ctx.strokeStyle = borderGradient;
     ctx.lineWidth = 5;
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = 'rgba(212, 175, 55, 0.5)';
+    // ปิด shadow เพื่อความเร็ว (หรือเปิดถ้าต้องการ)
+    // ctx.shadowBlur = 10;
+    // ctx.shadowColor = 'rgba(212, 175, 55, 0.5)';
     ctx.stroke();
-    ctx.shadowBlur = 0;
+    // ctx.shadowBlur = 0;
     
-    // วาดจุดศูนย์กลาง (สำหรับ debug)
-    ctx.fillStyle = '#ff0000';
-    ctx.beginPath();
-    ctx.arc(this.centerX, this.centerY, 5, 0, Math.PI * 2);
-    ctx.fill();
-    
-    console.log('วาดวงล้อเสร็จแล้ว:', {
-      segments: segmentCount,
-      radius: this.radius,
-      centerX: this.centerX,
-      centerY: this.centerY
-    });
   }
 
   spin() {
@@ -363,19 +351,45 @@ class WheelGame {
     let eventTriggered = false;
     const eventTriggerTime = 0.82;
 
+    // Smooth easing function (easeOutCubic)
+    const easeOutCubic = (t) => {
+      return 1 - Math.pow(1 - t, 3);
+    };
+    
+    // Smooth easing function (easeOutQuart) - ช้ากว่า
+    const easeOutQuart = (t) => {
+      return 1 - Math.pow(1 - t, 4);
+    };
+    
+    // Smooth easing function (easeOutQuint) - ช้ามาก
+    const easeOutQuint = (t) => {
+      return 1 - Math.pow(1 - t, 5);
+    };
+    
+    // Smooth easing function (easeOutExpo) - ช้ามากมาก
+    const easeOutExpo = (t) => {
+      return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+    };
+
     const animate = (timestamp) => {
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
       const progress = Math.min(elapsed / duration, 1);
 
-      // Easing: เร็วตอนแรก ช้ามากตอนท้าย
+      // Easing ที่ smooth มากขึ้น - ใช้ easeOutCubic สำหรับส่วนแรก
       let easeProgress;
-      if (progress < 0.8) {
-        const earlyProgress = progress / 0.8;
-        easeProgress = 1 - Math.pow(1 - earlyProgress, 3) * 0.8;
+      if (progress < 0.7) {
+        // ส่วนแรก: หมุนเร็ว (0-70%) - smooth acceleration
+        const earlyProgress = progress / 0.7;
+        easeProgress = easeOutCubic(earlyProgress) * 0.7;
+      } else if (progress < 0.88) {
+        // ส่วนกลาง: เริ่มช้าลง (70-88%) - smooth transition
+        const midProgress = (progress - 0.7) / 0.18;
+        easeProgress = 0.7 + easeOutQuart(midProgress) * 0.15;
       } else {
-        const lateProgress = (progress - 0.8) / 0.2;
-        easeProgress = 0.8 + (1 - Math.pow(1 - lateProgress, 5)) * 0.2;
+        // ส่วนท้าย: หมุนช้ามาก (88-100%) - very smooth deceleration
+        const lateProgress = (progress - 0.88) / 0.12;
+        easeProgress = 0.85 + easeOutExpo(lateProgress) * 0.15;
       }
       
       // Trigger event
@@ -384,41 +398,42 @@ class WheelGame {
         this.triggerEvent();
       }
 
-      // คำนวณมุมเป้าหมายปัจจุบัน
+      // คำนวณมุมเป้าหมายปัจจุบัน (smooth interpolation)
       let targetAngle;
       if (!eventTriggered) {
         // ก่อน event: หมุนไปที่รางวัลที่เกือบได้
         const preEventProgress = progress / eventTriggerTime;
-        let preEventEase;
-        if (preEventProgress < 0.8) {
-          const earlyProgress = preEventProgress / 0.8;
-          preEventEase = 1 - Math.pow(1 - earlyProgress, 3) * 0.8;
-        } else {
-          const lateProgress = (preEventProgress - 0.8) / 0.2;
-          preEventEase = 0.8 + (1 - Math.pow(1 - lateProgress, 5)) * 0.2;
-        }
+        const preEventEase = easeOutCubic(preEventProgress);
         targetAngle = nearTargetAngle * preEventEase;
       } else {
-        // หลัง event: ค่อยๆ เลื่อนไปที่ "ขอให้โชคดี"
+        // หลัง event: ค่อยๆ เลื่อนไปที่ "ขอให้โชคดี" (smooth)
         const eventProgress = (progress - eventTriggerTime) / (1 - eventTriggerTime);
-        const eventEase = 1 - Math.pow(1 - eventProgress, 5);
+        const eventEase = easeOutQuint(eventProgress);
         
         // คำนวณมุมระหว่าง nearTarget และ finalTarget
         let angleDiff = this.getShortestAngle(nearTargetAngle, finalTargetAngle);
         targetAngle = nearTargetAngle + angleDiff * eventEase;
       }
 
-      // ถ้าใกล้จบแล้ว (progress > 0.92) ให้บังคับไปที่ finalTargetAngle
-      if (progress > 0.92) {
-        const finalProgress = (progress - 0.92) / 0.08;
-        const finalEase = 1 - Math.pow(1 - finalProgress, 7);
+      // ถ้าใกล้จบแล้ว (progress > 0.88) ให้ค่อยๆ บังคับไปที่ finalTargetAngle
+      if (progress > 0.88) {
+        const finalProgress = (progress - 0.88) / 0.12;
+        // ใช้ easing ที่ smooth มากเพื่อไม่ให้กระตุก
+        const finalEase = easeOutExpo(finalProgress);
         let angleDiff = this.getShortestAngle(targetAngle, finalTargetAngle);
         targetAngle = targetAngle + angleDiff * finalEase;
       }
       
       // คำนวณมุมปัจจุบัน: หมุนหลายรอบ + มุมเป้าหมาย
-      this.currentAngle = this.normalizeAngle(startAngle + totalRotation * easeProgress + targetAngle);
+      // ใช้ linear interpolation สำหรับการหมุนรอบ
+      const baseRotationAngle = startAngle + totalRotation * easeProgress;
+      const finalAngle = baseRotationAngle + targetAngle;
       
+      // เก็บมุมแบบไม่ normalize เพื่อความต่อเนื่อง (ไม่กระตุก)
+      // แต่ normalize เฉพาะตอนวาด
+      this.currentAngle = finalAngle;
+      
+      // วาดวงล้อ (ใช้ requestAnimationFrame เพื่อความ smooth)
       this.drawWheel();
 
       if (progress < 1) {
@@ -459,10 +474,11 @@ class WheelGame {
     requestAnimationFrame(animate);
   }
 
-  // Helper function: normalize angle to 0-2π
+  // Helper function: normalize angle to 0-2π (optimized)
   normalizeAngle(angle) {
-    while (angle < 0) angle += Math.PI * 2;
-    while (angle >= Math.PI * 2) angle -= Math.PI * 2;
+    // ใช้ modulo แทน while loop เพื่อความเร็ว
+    angle = angle % (Math.PI * 2);
+    if (angle < 0) angle += Math.PI * 2;
     return angle;
   }
 
@@ -1028,17 +1044,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
     
-    // ตรวจสอบว่าวงล้อถูกวาดหรือไม่
-    if (wheelGame.canvas && wheelGame.ctx) {
-      console.log('Canvas พร้อมแล้ว:', {
-        width: wheelGame.canvas.width,
-        height: wheelGame.canvas.height,
-        segments: wheelGame.segments.length,
-        currentAngle: wheelGame.currentAngle
-      });
-    } else {
-      console.error('Canvas ไม่พร้อม!');
-    }
   } catch (error) {
     console.error('Error initializing game:', error);
   }

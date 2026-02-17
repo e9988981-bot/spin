@@ -208,9 +208,12 @@ h1::after {
     0 0 40px rgba(212, 175, 55, 0.3),
     0 0 80px rgba(212, 175, 55, 0.2),
     inset 0 0 30px rgba(0, 0, 0, 0.3);
-  transition: transform 0.1s ease-out;
+  transition: none; /* ปิด transition เพื่อความเร็ว */
   border: 4px solid rgba(212, 175, 55, 0.3);
   background: radial-gradient(circle at center, rgba(212, 175, 55, 0.1), transparent);
+  will-change: contents; /* บอก browser ให้ optimize */
+  image-rendering: -webkit-optimize-contrast; /* ทำให้ภาพชัดขึ้น */
+  image-rendering: crisp-edges;
 }
 
 .wheel-pointer {
