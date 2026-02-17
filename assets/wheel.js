@@ -349,7 +349,8 @@ class WheelGame {
     let startTime = null;
     const duration = this.reduceMotion ? 2000 : 5000;
     let eventTriggered = false;
-    const eventTriggerTime = 0.82;
+    const eventTriggerTime = 0.80; // Trigger event ที่ 80% เพื่อให้มีเวลาหมุนไปที่ "ขอให้โชคดี" มากขึ้น
+    const transitionStartTime = 0.78; // เริ่ม transition ที่ 78% เพื่อให้ smooth
 
     // Smooth easing function (easeOutCubic)
     const easeOutCubic = (t) => {
@@ -378,54 +379,68 @@ class WheelGame {
 
       // Easing ที่ smooth มากขึ้น - ใช้ easeOutCubic สำหรับส่วนแรก
       let easeProgress;
-      if (progress < 0.7) {
-        // ส่วนแรก: หมุนเร็ว (0-70%) - smooth acceleration
-        const earlyProgress = progress / 0.7;
-        easeProgress = easeOutCubic(earlyProgress) * 0.7;
-      } else if (progress < 0.88) {
-        // ส่วนกลาง: เริ่มช้าลง (70-88%) - smooth transition
-        const midProgress = (progress - 0.7) / 0.18;
-        easeProgress = 0.7 + easeOutQuart(midProgress) * 0.15;
+      if (progress < 0.65) {
+        // ส่วนแรก: หมุนเร็ว (0-65%) - smooth acceleration
+        const earlyProgress = progress / 0.65;
+        easeProgress = easeOutCubic(earlyProgress) * 0.65;
+      } else if (progress < 0.85) {
+        // ส่วนกลาง: เริ่มช้าลง (65-85%) - smooth transition
+        const midProgress = (progress - 0.65) / 0.2;
+        easeProgress = 0.65 + easeOutQuart(midProgress) * 0.15;
       } else {
-        // ส่วนท้าย: หมุนช้ามาก (88-100%) - very smooth deceleration
-        const lateProgress = (progress - 0.88) / 0.12;
-        easeProgress = 0.85 + easeOutExpo(lateProgress) * 0.15;
+        // ส่วนท้าย: หมุนช้ามาก (85-100%) - very smooth deceleration
+        const lateProgress = (progress - 0.85) / 0.15;
+        easeProgress = 0.8 + easeOutExpo(lateProgress) * 0.2;
       }
       
-      // Trigger event
-      if (!eventTriggered && progress >= eventTriggerTime) {
-        eventTriggered = true;
-        this.triggerEvent();
-      }
-
-      // คำนวณมุมเป้าหมายปัจจุบัน (smooth interpolation)
+      // คำนวณมุมเป้าหมายปัจจุบัน (smooth interpolation แบบต่อเนื่อง - ไม่กระตุก)
       let targetAngle;
-      if (!eventTriggered) {
-        // ก่อน event: หมุนไปที่รางวัลที่เกือบได้
-        const preEventProgress = progress / eventTriggerTime;
-        const preEventEase = easeOutCubic(preEventProgress);
-        targetAngle = nearTargetAngle * preEventEase;
+      
+      // คำนวณมุมระหว่าง nearTarget และ finalTarget (ทำครั้งเดียว)
+      const angleDiffToFinal = this.getShortestAngle(nearTargetAngle, finalTargetAngle);
+      
+      if (progress < transitionStartTime) {
+        // ก่อน transition: หมุนไปที่รางวัลที่เกือบได้
+        const preTransitionProgress = progress / transitionStartTime;
+        const preTransitionEase = easeOutCubic(preTransitionProgress);
+        targetAngle = nearTargetAngle * preTransitionEase;
+      } else if (progress < eventTriggerTime) {
+        // ช่วง transition: ค่อยๆ เริ่มเลื่อนไปที่ "ขอให้โชคดี" (smooth transition)
+        const transitionProgress = (progress - transitionStartTime) / (eventTriggerTime - transitionStartTime);
+        // ใช้ smoothstep เพื่อให้ transition นุ่มนวลมาก
+        const smoothTransition = transitionProgress * transitionProgress * (3 - 2 * transitionProgress);
+        // เลื่อนไปแค่ 20% ก่อนเพื่อให้เห็นการเปลี่ยนอย่างชัดเจน
+        targetAngle = nearTargetAngle + angleDiffToFinal * smoothTransition * 0.2;
       } else {
-        // หลัง event: ค่อยๆ เลื่อนไปที่ "ขอให้โชคดี" (smooth)
+        // Trigger event
+        if (!eventTriggered) {
+          eventTriggered = true;
+          this.triggerEvent();
+        }
+        
+        // หลัง event: ค่อยๆ เลื่อนไปที่ "ขอให้โชคดี" (smooth และต่อเนื่อง)
         const eventProgress = (progress - eventTriggerTime) / (1 - eventTriggerTime);
+        // ใช้ easing ที่ smooth มาก (easeOutQuint)
         const eventEase = easeOutQuint(eventProgress);
         
-        // คำนวณมุมระหว่าง nearTarget และ finalTarget
-        let angleDiff = this.getShortestAngle(nearTargetAngle, finalTargetAngle);
-        targetAngle = nearTargetAngle + angleDiff * eventEase;
+        // คำนวณมุมปัจจุบัน (เริ่มจากตำแหน่งที่ transition จบ)
+        const transitionEndAngle = nearTargetAngle + angleDiffToFinal * 0.2;
+        const remainingAngleDiff = angleDiffToFinal * 0.8; // เหลืออีก 80%
+        targetAngle = transitionEndAngle + remainingAngleDiff * eventEase;
       }
 
-      // ถ้าใกล้จบแล้ว (progress > 0.88) ให้ค่อยๆ บังคับไปที่ finalTargetAngle
-      if (progress > 0.88) {
-        const finalProgress = (progress - 0.88) / 0.12;
+      // ถ้าใกล้จบแล้ว (progress > 0.90) ให้ค่อยๆ บังคับไปที่ finalTargetAngle (smooth)
+      if (progress > 0.90) {
+        const finalProgress = (progress - 0.90) / 0.10;
         // ใช้ easing ที่ smooth มากเพื่อไม่ให้กระตุก
         const finalEase = easeOutExpo(finalProgress);
         let angleDiff = this.getShortestAngle(targetAngle, finalTargetAngle);
+        // Interpolate แบบ smooth
         targetAngle = targetAngle + angleDiff * finalEase;
       }
       
       // คำนวณมุมปัจจุบัน: หมุนหลายรอบ + มุมเป้าหมาย
-      // ใช้ linear interpolation สำหรับการหมุนรอบ
+      // ใช้ linear interpolation สำหรับการหมุนรอบ (smooth)
       const baseRotationAngle = startAngle + totalRotation * easeProgress;
       const finalAngle = baseRotationAngle + targetAngle;
       
@@ -433,7 +448,7 @@ class WheelGame {
       // แต่ normalize เฉพาะตอนวาด
       this.currentAngle = finalAngle;
       
-      // วาดวงล้อ (ใช้ requestAnimationFrame เพื่อความ smooth)
+      // วาดวงล้อ
       this.drawWheel();
 
       if (progress < 1) {
