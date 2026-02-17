@@ -1,0 +1,25 @@
+{
+  "goodLuckLabel": "ขอให้โชคดี",
+  "segments": [
+    {"label":"เงินสด 50,000 บาท","type":"cash","weight":1,"tier":"big"},
+    {"label":"ทองคำ 1 บาท","type":"gold","weight":1,"tier":"big"},
+    {"label":"iPhone","type":"iphone","weight":1,"tier":"big"},
+    {"label":"เงินสด 10,000 บาท","type":"cash","weight":2,"tier":"mid"},
+    {"label":"ทองคำ 2 สลึง","type":"gold","weight":2,"tier":"mid"},
+    {"label":"หูฟังไร้สาย","type":"gadget","weight":3,"tier":"mid"},
+    {"label":"เงินสด 1,000 บาท","type":"cash","weight":5,"tier":"small"},
+    {"label":"คูปองส่วนลด","type":"coupon","weight":6,"tier":"small"},
+    {"label":"น้ำอัดลม 1 กระป๋อง","type":"fun","weight":8,"tier":"small"},
+    {"label":"ขอให้โชคดี","type":"goodluck","weight":999,"tier":"always"}
+  ],
+  "events": [
+    {"key":"mystery_hand","label":"มือปริศนา"},
+    {"key":"cat_paw","label":"อุ้งเท้าแมว"},
+    {"key":"magnet","label":"แม่เหล็กดูดโชค"},
+    {"key":"wind","label":"ลมพัดโชคปลิว"},
+    {"key":"mosquito","label":"ยุงสะกิดวงล้อ"},
+    {"key":"ai_glitch","label":"AI มือซน (glitch)"},
+    {"key":"spring","label":"สปริงเด้ง"},
+    {"key":"butterfly","label":"ผีเสื้อบินมา"}
+  ]
+}
