@@ -243,71 +243,57 @@ class WheelGame {
     // สุ่มเหตุการณ์
     this.selectedEvent = this.events[Math.floor(Math.random() * this.events.length)];
 
-    // คำนวณมุมที่เกือบได้รางวัลใหญ่
-    const nearPrizeIndex = this.segments.findIndex(s => s.label === this.nearPrize.label);
+    // คำนวณมุมทั้งหมด
     const segmentCount = this.segments.length;
     const anglePerSegment = (Math.PI * 2) / segmentCount;
-    
-    // คำนวณมุม "ขอให้โชคดี" (ต้องได้รางวัลนี้เสมอ)
-    // Pointer ชี้ขึ้นที่ Math.PI / 2 (90 องศา)
-    // Segment i มี center angle = i * anglePerSegment + anglePerSegment/2 (วัดจากแกน x บวก, ทวนเข็มนาฬิกา)
-    // เมื่อหมุนวงล้อด้วย currentAngle, segment center จะอยู่ที่: segmentCenterAngle + currentAngle
-    // เพื่อให้ pointer (Math.PI / 2) ชี้ที่ segment center:
-    // segmentCenterAngle + currentAngle = Math.PI / 2
-    // currentAngle = Math.PI / 2 - segmentCenterAngle
-    
     const goodLuckIndex = this.goodLuckIndex;
+    
+    // คำนวณมุมที่ต้องหมุนเพื่อให้ pointer (Math.PI / 2) ชี้ที่ "ขอให้โชคดี"
+    // Segment center angle = goodLuckIndex * anglePerSegment + anglePerSegment / 2
+    // เมื่อหมุนด้วย currentAngle: segmentCenterAngle + currentAngle = Math.PI / 2
+    // ดังนั้น: currentAngle = Math.PI / 2 - segmentCenterAngle
     const goodLuckSegmentCenterAngle = goodLuckIndex * anglePerSegment + anglePerSegment / 2;
+    const finalTargetAngle = this.normalizeAngle(Math.PI / 2 - goodLuckSegmentCenterAngle);
     
-    // คำนวณมุมที่ต้องหมุนเพื่อให้ pointer ชี้ที่ "ขอให้โชคดี"
-    let finalTargetAngle = Math.PI / 2 - goodLuckSegmentCenterAngle;
-    
-    // Normalize มุมให้อยู่ในช่วง 0 ถึง 2π
-    while (finalTargetAngle < 0) finalTargetAngle += Math.PI * 2;
-    while (finalTargetAngle >= Math.PI * 2) finalTargetAngle -= Math.PI * 2;
-    
-    // มุมที่เกือบได้รางวัลใหญ่ (ก่อนจะโดนดึง)
-    // คำนวณมุมที่เกือบได้ (ก่อน boundary เล็กน้อย)
-    const nearPrizeMidAngle = nearPrizeIndex * anglePerSegment + anglePerSegment / 2;
-    const nearTargetAngle = Math.PI / 2 - nearPrizeMidAngle - anglePerSegment * 0.15;
+    // คำนวณมุมที่เกือบได้รางวัลใหญ่ (ก่อนจะโดนดึง)
+    const nearPrizeIndex = this.segments.findIndex(s => s.label === this.nearPrize.label);
+    const nearPrizeSegmentCenterAngle = nearPrizeIndex * anglePerSegment + anglePerSegment / 2;
+    // เลื่อนไปก่อน boundary เล็กน้อยเพื่อให้ดูเหมือนเกือบได้
+    const nearTargetAngle = this.normalizeAngle(Math.PI / 2 - nearPrizeSegmentCenterAngle - anglePerSegment * 0.15);
 
     // เริ่มหมุน
     const startAngle = this.currentAngle;
-    const baseRotation = this.reduceMotion ? 2 : 5; // รอบหมุน
+    const baseRotation = this.reduceMotion ? 2 : 5;
     const totalRotation = baseRotation * Math.PI * 2;
     
     let startTime = null;
-    const duration = this.reduceMotion ? 2000 : 5000; // เพิ่มเป็น 5 วินาที
+    const duration = this.reduceMotion ? 2000 : 5000;
     let eventTriggered = false;
-    const eventTriggerTime = 0.82; // Trigger event ที่ 82% ของ progress (ประมาณ 4.1 วินาที)
+    const eventTriggerTime = 0.82;
 
     const animate = (timestamp) => {
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
       const progress = Math.min(elapsed / duration, 1);
 
-      // Easing function ที่ช้าลงเมื่อใกล้จบ
-      // ใช้ easeOutCubic สำหรับส่วนแรก แต่ช้าลงมากเมื่อ progress > 0.8
+      // Easing: เร็วตอนแรก ช้ามากตอนท้าย
       let easeProgress;
       if (progress < 0.8) {
-        // ส่วนแรก: หมุนเร็ว
         const earlyProgress = progress / 0.8;
         easeProgress = 1 - Math.pow(1 - earlyProgress, 3) * 0.8;
       } else {
-        // ส่วนหลัง: หมุนช้ามาก (80-100%)
         const lateProgress = (progress - 0.8) / 0.2;
-        // ใช้ easing ที่ช้ามาก
         easeProgress = 0.8 + (1 - Math.pow(1 - lateProgress, 5)) * 0.2;
       }
       
-      // ตรวจสอบว่าถึงเวลาที่ต้อง trigger event
+      // Trigger event
       if (!eventTriggered && progress >= eventTriggerTime) {
         eventTriggered = true;
         this.triggerEvent();
       }
 
-      // คำนวณมุมปัจจุบัน
-      let currentTargetAngle;
+      // คำนวณมุมเป้าหมายปัจจุบัน
+      let targetAngle;
       if (!eventTriggered) {
         // ก่อน event: หมุนไปที่รางวัลที่เกือบได้
         const preEventProgress = progress / eventTriggerTime;
@@ -319,94 +305,44 @@ class WheelGame {
           const lateProgress = (preEventProgress - 0.8) / 0.2;
           preEventEase = 0.8 + (1 - Math.pow(1 - lateProgress, 5)) * 0.2;
         }
-        currentTargetAngle = nearTargetAngle * preEventEase;
+        targetAngle = nearTargetAngle * preEventEase;
       } else {
-        // หลัง event: ค่อยๆ เลื่อนไปที่ "ขอให้โชคดี" (ช้ามาก)
+        // หลัง event: ค่อยๆ เลื่อนไปที่ "ขอให้โชคดี"
         const eventProgress = (progress - eventTriggerTime) / (1 - eventTriggerTime);
-        // ใช้ easing ที่ช้ามากมาก (easeOutQuint)
         const eventEase = 1 - Math.pow(1 - eventProgress, 5);
         
         // คำนวณมุมระหว่าง nearTarget และ finalTarget
-        let angleDiff = finalTargetAngle - nearTargetAngle;
-        // ปรับให้เป็นมุมที่สั้นที่สุด (normalize ระหว่าง -π ถึง π)
-        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-        
-        currentTargetAngle = nearTargetAngle + angleDiff * eventEase;
+        let angleDiff = this.getShortestAngle(nearTargetAngle, finalTargetAngle);
+        targetAngle = nearTargetAngle + angleDiff * eventEase;
       }
 
-      // คำนวณมุมสุดท้าย: หมุนหลายรอบ + มุมเป้าหมาย
-      // ถ้าใกล้จบแล้ว (progress > 0.92) ให้ค่อยๆ บังคับไปที่ finalTargetAngle
+      // ถ้าใกล้จบแล้ว (progress > 0.92) ให้บังคับไปที่ finalTargetAngle
       if (progress > 0.92) {
         const finalProgress = (progress - 0.92) / 0.08;
-        // ใช้ easing ที่ช้ามากมาก
         const finalEase = 1 - Math.pow(1 - finalProgress, 7);
-        const currentDiff = finalTargetAngle - currentTargetAngle;
-        let normalizedDiff = currentDiff;
-        while (normalizedDiff > Math.PI) normalizedDiff -= Math.PI * 2;
-        while (normalizedDiff < -Math.PI) normalizedDiff += Math.PI * 2;
-        currentTargetAngle = currentTargetAngle + normalizedDiff * finalEase;
+        let angleDiff = this.getShortestAngle(targetAngle, finalTargetAngle);
+        targetAngle = targetAngle + angleDiff * finalEase;
       }
       
-      this.currentAngle = startAngle + totalRotation * easeProgress + currentTargetAngle;
-      
-      // Normalize มุมปัจจุบันให้อยู่ในช่วง 0 ถึง 2π
-      while (this.currentAngle < 0) this.currentAngle += Math.PI * 2;
-      while (this.currentAngle >= Math.PI * 2) this.currentAngle -= Math.PI * 2;
+      // คำนวณมุมปัจจุบัน: หมุนหลายรอบ + มุมเป้าหมาย
+      this.currentAngle = this.normalizeAngle(startAngle + totalRotation * easeProgress + targetAngle);
       
       this.drawWheel();
 
       if (progress < 1) {
         this.animationId = requestAnimationFrame(animate);
       } else {
-        // จบการหมุน - ต้องได้ "ขอให้โชคดี" เสมอ (บังคับให้ตรงเป๊ะ)
-        // คำนวณมุมสุดท้ายใหม่ทั้งหมดเพื่อให้แน่ใจว่าวงล้อจะหยุดที่ "ขอให้โชคดี"
-        
-        // Pointer ชี้ขึ้นที่ Math.PI / 2 (90 องศา)
-        // Segment "ขอให้โชคดี" มี index = goodLuckIndex
-        // มุม center ของ segment = goodLuckIndex * anglePerSegment + anglePerSegment / 2
-        // เพื่อให้ pointer ชี้ที่ segment center:
-        // currentAngle + segmentCenterAngle = Math.PI / 2
-        // currentAngle = Math.PI / 2 - segmentCenterAngle
-        
-        const segmentCenterAngle = goodLuckIndex * anglePerSegment + anglePerSegment / 2;
-        const exactTargetAngle = Math.PI / 2 - segmentCenterAngle;
-        
-        // Normalize มุมให้อยู่ในช่วง 0 ถึง 2π
-        let normalizedAngle = exactTargetAngle;
-        while (normalizedAngle < 0) normalizedAngle += Math.PI * 2;
-        while (normalizedAngle >= Math.PI * 2) normalizedAngle -= Math.PI * 2;
-        
-        // ตั้งค่ามุมสุดท้ายให้ตรงเป๊ะ (บังคับ)
-        this.currentAngle = normalizedAngle;
-        
-        // วาดอีกครั้งเพื่อให้แน่ใจว่าหยุดที่ตำแหน่งถูกต้อง
+        // จบการหมุน - บังคับให้หยุดที่ "ขอให้โชคดี" เป๊ะๆ
+        this.currentAngle = finalTargetAngle;
         this.drawWheel();
         
-        // ตรวจสอบอีกครั้งว่าหยุดที่ "ขอให้โชคดี" จริงๆ (double check)
-        const currentSegmentCenterAngle = (goodLuckIndex * anglePerSegment + anglePerSegment / 2 + this.currentAngle) % (Math.PI * 2);
+        // ตรวจสอบอีกครั้งและปรับถ้ายังไม่ตรง
+        const currentSegmentCenterAngle = this.normalizeAngle(goodLuckSegmentCenterAngle + this.currentAngle);
         const pointerAngle = Math.PI / 2;
-        let angleDiff = pointerAngle - currentSegmentCenterAngle;
+        let angleDiff = this.getShortestAngle(currentSegmentCenterAngle, pointerAngle);
         
-        // ปรับให้เป็นมุมที่สั้นที่สุด
-        if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-        if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-        
-        // ถ้ายังไม่ตรง ให้ปรับอีกครั้ง (บังคับให้ตรงเป๊ะ)
         if (Math.abs(angleDiff) > 0.0001) {
-          this.currentAngle += angleDiff;
-          while (this.currentAngle < 0) this.currentAngle += Math.PI * 2;
-          while (this.currentAngle >= Math.PI * 2) this.currentAngle -= Math.PI * 2;
-          this.drawWheel();
-        }
-        
-        // ตรวจสอบครั้งสุดท้าย: บังคับให้ตรงเป๊ะ
-        const finalCheckAngle = (goodLuckIndex * anglePerSegment + anglePerSegment / 2 + this.currentAngle) % (Math.PI * 2);
-        const finalDiff = ((Math.PI / 2 - finalCheckAngle + Math.PI) % (Math.PI * 2)) - Math.PI;
-        if (Math.abs(finalDiff) > 0.0001) {
-          this.currentAngle = Math.PI / 2 - (goodLuckIndex * anglePerSegment + anglePerSegment / 2);
-          while (this.currentAngle < 0) this.currentAngle += Math.PI * 2;
-          while (this.currentAngle >= Math.PI * 2) this.currentAngle -= Math.PI * 2;
+          this.currentAngle = this.normalizeAngle(this.currentAngle + angleDiff);
           this.drawWheel();
         }
         
@@ -415,6 +351,21 @@ class WheelGame {
     };
 
     requestAnimationFrame(animate);
+  }
+
+  // Helper function: normalize angle to 0-2π
+  normalizeAngle(angle) {
+    while (angle < 0) angle += Math.PI * 2;
+    while (angle >= Math.PI * 2) angle -= Math.PI * 2;
+    return angle;
+  }
+
+  // Helper function: get shortest angle difference between two angles
+  getShortestAngle(from, to) {
+    let diff = to - from;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    return diff;
   }
 
   triggerEvent() {
@@ -596,30 +547,23 @@ class WheelGame {
     const anglePerSegment = (Math.PI * 2) / segmentCount;
     const goodLuckIndex = this.goodLuckIndex;
     const goodLuckSegmentCenterAngle = goodLuckIndex * anglePerSegment + anglePerSegment / 2;
-    const currentSegmentCenterAngle = (goodLuckSegmentCenterAngle + this.currentAngle) % (Math.PI * 2);
-    const pointerAngle = Math.PI / 2;
     
-    let angleDiff = pointerAngle - currentSegmentCenterAngle;
-    if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-    if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+    // คำนวณมุมที่ถูกต้องเพื่อให้ pointer ชี้ที่ "ขอให้โชคดี"
+    const exactTargetAngle = this.normalizeAngle(Math.PI / 2 - goodLuckSegmentCenterAngle);
+    
+    // ตรวจสอบว่ามุมปัจจุบันตรงกับที่ต้องการหรือไม่
+    const currentSegmentCenterAngle = this.normalizeAngle(goodLuckSegmentCenterAngle + this.currentAngle);
+    const pointerAngle = Math.PI / 2;
+    let angleDiff = this.getShortestAngle(currentSegmentCenterAngle, pointerAngle);
     
     // ถ้ายังไม่ตรง ให้ปรับอีกครั้ง (บังคับให้ตรงเป๊ะ)
-    if (Math.abs(angleDiff) > 0.001) {
-      const exactTargetAngle = Math.PI / 2 - goodLuckSegmentCenterAngle;
-      let normalizedAngle = exactTargetAngle;
-      while (normalizedAngle < 0) normalizedAngle += Math.PI * 2;
-      while (normalizedAngle >= Math.PI * 2) normalizedAngle -= Math.PI * 2;
-      this.currentAngle = normalizedAngle;
+    if (Math.abs(angleDiff) > 0.0001) {
+      this.currentAngle = exactTargetAngle;
       this.drawWheel();
     }
     
     // ตั้งค่าให้วงล้อเริ่มจาก "ขอให้โชคดี" เมื่อเล่นต่อ
-    // คำนวณมุมที่ทำให้ pointer ชี้ที่ "ขอให้โชคดี"
-    const exactTargetAngle = Math.PI / 2 - goodLuckSegmentCenterAngle;
-    let normalizedAngle = exactTargetAngle;
-    while (normalizedAngle < 0) normalizedAngle += Math.PI * 2;
-    while (normalizedAngle >= Math.PI * 2) normalizedAngle -= Math.PI * 2;
-    this.currentAngle = normalizedAngle;
+    this.currentAngle = exactTargetAngle;
     this.drawWheel();
     
     // แสดงผลลัพธ์ (บังคับให้แสดง "ขอให้โชคดี" เสมอ)
